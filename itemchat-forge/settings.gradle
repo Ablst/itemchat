@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            name = 'MinecraftForge'
+            url = 'https://maven.minecraftforge.net/'
+        }
+    }
+
+    // ForgeGradle 只以普通 Maven 模块（net.minecraftforge.gradle:ForgeGradle）发布，
+    // 插件门户里没有它的 marker，所以这里显式把插件 id 映射到模块坐标。
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == 'net.minecraftforge.gradle') {
+                useModule("net.minecraftforge.gradle:ForgeGradle:${requested.version}")
+            }
+        }
+    }
+}
+
+rootProject.name = 'itemchat-forge'

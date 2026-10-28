@@ -1,0 +1,170 @@
+plugins {
+    id 'java'
+    // ModDevGradle：NeoForge 官方推荐的 Gradle 构建插件，替代旧的 ForgeGradle。
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// NeoForge 1.21.1 运行在 Java 21 上（1.20.1 Forge 用的是 Java 17）。
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// 源码里有中文注释 / 字符串，Windows 默认编码是 GBK，这里强制 UTF-8。
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+        }
+        server {
+            server()
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+repositories {
+    // 官方仓库 maven.neoforged.net 不可达，settings.gradle 里已经把 MDG 注册的地址
+    // 改写成 CDN77 镜像；这里再补一份同样的镜像做双保险。
+    maven {
+        name = 'NeoForgedMirror'
+        url = 'https://1755624453.rsc.cdn77.org/releases'
+    }
+    maven {
+        name = 'AliyunPublic'
+        url = 'https://maven.aliyun.com/repository/public'
+    }
+    mavenCentral()
+    // JEI 发布在 BlameJared 仓库。
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
+    }
+    // FTB 官方 maven（此前一度不可达，现已恢复；路径是 /releases/ 而不是根路径）。
+    maven {
+        name = 'FTB'
+        url = 'https://maven.ftb.dev/releases'
+    }
+    // Architectury 是 FTB 全家桶的硬依赖，走它自己的 maven。
+    maven {
+        name = 'Architectury'
+        url = 'https://maven.architectury.dev'
+    }
+}
+
+// 是否在开发环境里加载 FTB 全家桶。
+// 用 -PwithFtb=false 可以跑「服务端没装 FTB 任务」的软依赖冒烟测试，
+// 用来证明没装 FTB 时模组不会因为缺类而崩（compileOnly 不参与这个开关）。
+def withFtb = (findProperty('withFtb') ?: 'true') == 'true'
+
+dependencies {
+    // JEI 是可选依赖：编译期只需要 API；运行期的完整 jar 让 runClient 能直接测整合效果。
+    // NeoForge 版 JEI 直接使用官方映射名发布，不需要再做 deobf。
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
+    runtimeOnly "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+
+    // ---- 软依赖：FTB 任务（含它的两个硬依赖 architectury / ftb-library / ftb-teams）----
+    // NeoForge 1.21.1 线不再需要 item-filters（1.20.1 的 2001.x 才需要）。
+    // 这些仓库发布的就是官方映射的 NeoForge jar，没有 SRG 中间名，所以不需要 fg.deobf。
+    // 也刻意不用 jarJar：FTB 是可选依赖，打进产物只会白白撑大体积。
+    compileOnly "dev.ftb.mods:ftb-quests-neoforge:${ftb_quests_version}"
+    compileOnly "dev.ftb.mods:ftb-library-neoforge:${ftb_library_version}"
+    compileOnly "dev.ftb.mods:ftb-teams-neoforge:${ftb_teams_version}"
+    compileOnly "dev.architectury:architectury-neoforge:${architectury_version}"
+
+    if (withFtb) {
+        runtimeOnly "dev.ftb.mods:ftb-quests-neoforge:${ftb_quests_version}"
+        runtimeOnly "dev.ftb.mods:ftb-library-neoforge:${ftb_library_version}"
+        runtimeOnly "dev.ftb.mods:ftb-teams-neoforge:${ftb_teams_version}"
+        runtimeOnly "dev.architectury:architectury-neoforge:${architectury_version}"
+    }
+}
+
+// 把 neoforge.mods.toml / pack.mcmeta 里的 ${...} 占位符替换成 gradle.properties 的值。
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors
+    ]
+    inputs.properties replaceProperties
+
+    filteringCharset = 'UTF-8'
+
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+// 产物命名规则：<modid>-<modversion>-<loader>.jar
+// 例如 itemchat-1.1.0-neoforge.jar，与 Forge 版的 itemchat-1.0.0.jar 区分开。
+tasks.named('jar', Jar).configure {
+    archiveClassifier = 'neoforge'
+}
+
+// ---------------------------------------------------------------------------
+// 补 NFRT 外部工具缓存
+//
+// ModDevGradle 2.0.148 配 NeoFormRuntime 2.0.31 时，生成的外部工具清单
+// （build/tmp/createMinecraftArtifacts/nfrt_artifact_manifest.properties）漏掉了
+// binarypatcher:2.1.2:fatjar，而 NFRT 只会去它内部硬编码的
+// https://maven.neoforged.net/releases/ 下载，该域名在国内不可达，
+// binaryPatch 节点就直接 ConnectException 挂掉。
+//
+// NFRT 在下载前会先看本地缓存 ~/.gradle/caches/neoformruntime/artifacts/<maven 路径>，
+// 命中就完全跳过网络。所以这里用 Gradle 自己的仓库（已指向镜像）把缺的文件解析出来
+// 放进缓存，从而绕开那个硬编码地址，而且 gradlew clean 不会清掉这份缓存。
+// ---------------------------------------------------------------------------
+def nfrtCacheDir = new File(gradle.gradleUserHomeDir, 'caches/neoformruntime/artifacts')
+def nfrtMissingTools = [
+        // NFRT 要求的坐标 -> 它在缓存里的相对路径
+        'net.neoforged.installertools:binarypatcher:2.1.2:fatjar':
+                'net/neoforged/installertools/binarypatcher/2.1.2/binarypatcher-2.1.2-fatjar.jar'
+]
+
+tasks.register('seedNfrtToolCache') {
+    description = '把 NFRT 清单漏掉的外部工具补进它的本地缓存，避免访问被墙的 maven.neoforged.net'
+    outputs.files(nfrtMissingTools.values().collect { new File(nfrtCacheDir, it) })
+    doLast {
+        nfrtMissingTools.each { gav, relPath ->
+            def target = new File(nfrtCacheDir, relPath)
+            if (target.exists()) {
+                return
+            }
+            def config = configurations.detachedConfiguration(dependencies.create(gav))
+            config.transitive = false
+            def source = config.singleFile
+            target.parentFile.mkdirs()
+            java.nio.file.Files.copy(source.toPath(), target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            logger.lifecycle("itemchat: seeded NFRT tool ${gav} -> ${target}")
+        }
+    }
+}
+
+tasks.named('createMinecraftArtifacts').configure {
+    dependsOn 'seedNfrtToolCache'
+}

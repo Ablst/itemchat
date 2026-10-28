@@ -1,0 +1,18 @@
+{
+  "itemchat.chat.share_item": "[Item] %1$s shared %2$s%3$s %4$s",
+  "itemchat.chat.share_quest": "[Quest] %1$s shared %2$s %3$s",
+  "itemchat.chat.item_count": " x%s",
+  "itemchat.chat.check": "[Check]",
+  "itemchat.chat.check.hover": "Click to check this item's recipes",
+  "itemchat.chat.check_quest": "[Check Quest]",
+  "itemchat.chat.check_quest.hover": "Click to open this quest in FTB Quests",
+  "itemchat.chat.quest_label.hover": "Click to view this quest in FTB Quests",
+
+  "itemchat.msg.no_ftbquests": "This server does not have FTB Quests installed, so quests can't be shared.",
+  "itemchat.msg.quest_not_found": "Quest not found: %s",
+  "itemchat.msg.no_ftbquests_client": "FTB Quests not detected, so this quest can't be opened.",
+  "itemchat.msg.no_jei": "JEI not detected, so this recipe can't be opened.",
+  "itemchat.msg.unknown_item": "Unknown item: %s",
+  "itemchat.msg.no_itemchat_item": "This server does not have ItemChat installed, so items can't be shared.",
+  "itemchat.msg.no_itemchat_quest": "This server does not have ItemChat installed, so quests can't be shared."
+}

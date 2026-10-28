@@ -1,0 +1,31 @@
+# Gradle
+build/
+out/
+.gradle/
+
+# Local dev run directory (contains a test world, eula.txt, logs)
+run/
+run-data/
+
+# 第三方模组 jar 一律不进版本库。
+# 这是许可证问题，不是洁癖：把 FTB / JEI 的 jar 提交到公开仓库等于再分发别人
+# 的模组。本工程的依赖全部从官方 maven 拉取，不需要本地 jar。
+libs/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+bin/
+.vscode/
+
+# Logs（构建/运行调试留下的）
+*.log
+
+# OS
+Thumbs.db
+.DS_Store

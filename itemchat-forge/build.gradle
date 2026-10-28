@@ -1,0 +1,192 @@
+// ===========================================================================
+// ItemChat —— Forge 1.20.1 版
+//
+// 本工程是从成品 jar（itemchat-1.0.0.jar）反编译基线重建的。原 Forge 1.20.1 源码
+// 在 NeoForge 1.21.1 移植时被覆盖丢失（当时目录没有 git 也没有备份），因此这里的
+// 构建脚本按 ForgeGradle 6 官方 MDK 结构重写，源码按反编译结果逐一还原并补注释。
+//
+// 依赖说明：FTB 全家桶与 JEI 全部从各自的官方 maven 拉取（见下面的 repositories），
+// 仓库里不 vendors 任何第三方 jar —— 把别人的模组提交到公开仓库等于再分发，
+// 是许可证问题。1.20.1 线的 FTB 是 2001.x；15.x 的 JEI 只服务于这条线。
+// ===========================================================================
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// Forge 1.20.1 必须用 Java 17
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+    copyIdeResources = true
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', ''
+            property 'forge.logging.console.level', 'debug'
+
+            // FTB Library 自带的 mixin refmap 把目标名映射回 SRG，而 dev 环境的 MC 已经是
+            // 官方名；不关掉 refmap 就会「在官方名类里找 SRG 名」而必然失败。详见文件末尾说明。
+            property 'mixin.env.disableRefMap', 'true'
+
+            // 开发环境里同时加载 JEI 与 FTB 任务，方便做「装了依赖」的冒烟测试
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', ''
+            property 'forge.logging.console.level', 'debug'
+
+            // 同 client：关掉第三方 mod 的 mixin refmap，否则 FTB Library 在 dev 环境加载即崩。
+            property 'mixin.env.disableRefMap', 'true'
+
+            args '--nogui'
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'MinecraftForge'
+        url = 'https://maven.minecraftforge.net/'
+    }
+    // FTB 官方 maven。注意路径里要带 /releases/，裸域名是没有内容的。
+    maven {
+        name = 'FTB'
+        url = 'https://maven.ftb.dev/releases'
+    }
+    // Architectury 是 FTB 全家桶的硬依赖。
+    maven {
+        name = 'Architectury'
+        url = 'https://maven.architectury.dev'
+    }
+    // JEI 发布在 BlameJared 仓库。
+    maven {
+        name = 'BlameJared'
+        url = 'https://maven.blamejared.com'
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // ---- 软依赖：JEI（1.20.1 对应 15.x）----
+    // compileOnly 只为拿到编译期 API；runtimeOnly 让 runClient 真能加载 JEI 做冒烟测试。
+    // 注意：本模组不把 JEI 声明为强制依赖，没装的客户端也能进服。
+    compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
+    runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
+
+    // ---- 软依赖：FTB 任务（含它的三个硬依赖 architectury / ftblibrary / ftbteams）----
+    // fg.deobf 是必须的：这些 jar 在 maven 上是按 SRG 名发布的，而本工程用 official
+    // 映射编译，不 remap 会编译不过。
+    // 不引入 item-filters：FTB Quests 2001.4.22 里 itemfilters 是 mandatory=false，
+    // 本模组也没有引用它的类，少一个依赖就少一个获取失败点。
+    compileOnly fg.deobf("dev.ftb.mods:ftb-quests-forge:${ftb_quests_version}")
+    compileOnly fg.deobf("dev.ftb.mods:ftb-library-forge:${ftb_library_version}")
+    compileOnly fg.deobf("dev.ftb.mods:ftb-teams-forge:${ftb_teams_version}")
+    compileOnly fg.deobf("dev.architectury:architectury-forge:${architectury_version}")
+
+    runtimeOnly fg.deobf("dev.ftb.mods:ftb-quests-forge:${ftb_quests_version}")
+    runtimeOnly fg.deobf("dev.ftb.mods:ftb-library-forge:${ftb_library_version}")
+    runtimeOnly fg.deobf("dev.ftb.mods:ftb-teams-forge:${ftb_teams_version}")
+    runtimeOnly fg.deobf("dev.architectury:architectury-forge:${architectury_version}")
+}
+
+// mods.toml 里的 ${...} 占位符在这里填充
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+    ]
+    inputs.properties replaceProperties
+
+    // ★ 必须显式指定 UTF-8。Gradle 做 expand（模板替换）时的默认编码是平台编码
+    // （中文 Windows 上是 GBK），拿它去读 UTF-8 的 mods.toml 会把中文拆坏，
+    // 结果就是模组列表里那一片 "?？" 乱码。语言文件同理。
+    filteringCharset = 'UTF-8'
+
+    filesMatching(['META-INF/mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 产物命名规则：<modid>-<modversion>-<loader>.jar
+// 即 itemchat-1.2.0-forge.jar，与 NeoForge 版的 itemchat-1.1.0-neoforge.jar 区分开。
+// ForgeGradle 会在 jar 之后把它 reobf（SRG 化），RenameJarInPlace 是原地替换，
+// 所以 build/libs 里留下的就是可直接放进 mods/ 的成品。
+// ---------------------------------------------------------------------------
+tasks.named('jar', Jar).configure {
+    archiveFileName = "${mod_id}-${mod_version}-forge.jar"
+
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_id,
+                'Specification-Vendor'  : mod_authors,
+                'Specification-Version' : '1',
+                'Implementation-Title'  : project.name,
+                'Implementation-Version': project.version,
+                'Implementation-Vendor' : mod_authors,
+        ])
+    }
+
+    finalizedBy 'reobfJar'
+}
+
+// 源码里大量中文注释，强制按 UTF-8 编译，避免平台默认编码导致乱码或编译失败
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// ---------------------------------------------------------------------------
+// 关于 runs 里的 -Dmixin.env.disableRefMap=true
+//
+// FTB Library 2001.2.13 的 mixin 注解读作 ：
+//   ftblibrary-common.mixins.json -> ResourceLocationMixin
+// 它的 refmap（ftb-library-common-refmap.json）里这么写：
+//     "validPathChar":   "Lnet/minecraft/resources/ResourceLocation;m_135828_(C)Z"
+//     "validNamespaceChar": "Lnet/minecraft/resources/ResourceLocation;m_135835_(C)Z"
+// 也就是「注解里写的官方名 -> 生产环境的 SRG 名」。
+//
+// 在 dev 环境里，MC 已经被 ForgeGradle 重映射成官方名（validPathChar 就叫 validPathChar），
+// 如果继续按 refmap 去查 SRG 名 m_135828_，就会 InvalidInjectionException 直接把游戏打崩。
+// 关掉 refmap 后，mixin 直接用注解里的官方名，正好命中 dev 环境的类。
+//
+// 这只影响 `gradlew runClient/runServer` 这类开发环境运行；玩家手上的生产环境用的是
+// SRG 名，refmap 照常生效，所以完全不受影响。将来若在 dev 里加别的第三方 mod 出现
+// 类似 mixin 报错，也是同一个原因。
+// ---------------------------------------------------------------------------

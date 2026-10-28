@@ -1,0 +1,32 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+// 本机没有 JAVA_HOME，JDK 由 gradle.properties 里的
+// org.gradle.java.installations.paths 指定；这个插件只在自动下载开启时才联网。
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+
+// maven.neoforged.net 在当前网络环境下连不通（域名解析到被封的 IP 段），
+// 而 ModDevGradle 会往项目里硬编码注册下面两个仓库：
+//   https://maven.neoforged.net/releases
+//   https://maven.neoforged.net/mojang-meta
+// 这里在仓库对象被加入项目的那一刻把 URL 改写到 CDN77 镜像上（路径完全一致），
+// 这样既不用改 hosts，也不用等官方域名超时。
+gradle.beforeProject { project ->
+    project.repositories.whenObjectAdded { repo ->
+        if (repo instanceof org.gradle.api.artifacts.repositories.MavenArtifactRepository) {
+            String url = repo.url?.toString()
+            if (url != null && url.startsWith('https://maven.neoforged.net')) {
+                String mirror = 'https://1755624453.rsc.cdn77.org' + url.substring('https://maven.neoforged.net'.length())
+                repo.setUrl(mirror)
+                project.logger.lifecycle("itemchat: rewrote repository ${url} -> ${mirror}")
+            }
+        }
+    }
+}
+
+rootProject.name = 'itemchat'

@@ -1,0 +1,51 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+authors="${mod_authors}"
+# 说明：模组元数据里的 description 是静态字符串，没有翻译机制，不随游戏语言变化。
+# 为了让任何语言下都不出乱码，写成英文。
+description='''
+Press the middle mouse button on an item -- in your inventory, any container, or JEI's item list -- to show it to everyone in chat.
+The item name in the message has a hover preview, and the [Check] button next to it opens that item's recipes in JEI.
+
+Press the middle mouse button on a quest in FTB Quests to share that quest, with a [Check Quest] button that opens the quest book at that quest.
+
+JEI and FTB Quests are both optional: without them everything else still works, only the corresponding button will say it was not detected.
+'''
+
+# NeoForge 1.21.1 用 type="required|optional" 取代了旧 Forge 的 mandatory=true|false。
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="${neo_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+# 可选依赖：没有 JEI 时模组照常工作，只是 [检查] 按钮会提示缺少 JEI。
+[[dependencies.${mod_id}]]
+    modId="jei"
+    type="optional"
+    versionRange="[19,)"
+    ordering="AFTER"
+    side="CLIENT"
+
+# FTB 任务是可选依赖：没装时中键分享物品不受影响，只有中键任务 / 点 [检查任务] 才会提示。
+# side 必须是 BOTH：客户端要判鼠标悬停在哪个任务按钮上，服务端要按 id 查出任务标题才能广播。
+[[dependencies.${mod_id}]]
+    modId="ftbquests"
+    type="optional"
+    versionRange="[2101,)"
+    ordering="AFTER"
+    side="BOTH"

@@ -1,0 +1,18 @@
+{
+  "itemchat.chat.share_item": "[物品] %1$s 展示了 %2$s%3$s %4$s",
+  "itemchat.chat.share_quest": "[任务] %1$s 展示了 %2$s %3$s",
+  "itemchat.chat.item_count": " ×%s",
+  "itemchat.chat.check": "[检查]",
+  "itemchat.chat.check.hover": "点击检查该物品的配方",
+  "itemchat.chat.check_quest": "[检查任务]",
+  "itemchat.chat.check_quest.hover": "点击打开 FTB 任务书并定位到这条任务",
+  "itemchat.chat.quest_label.hover": "点击在 FTB 任务中查看这条任务",
+
+  "itemchat.msg.no_ftbquests": "当前服务器没有安装 FTB 任务，无法展示任务。",
+  "itemchat.msg.quest_not_found": "找不到这条 FTB 任务：%s",
+  "itemchat.msg.no_ftbquests_client": "未检测到 FTB 任务，无法查看该任务。",
+  "itemchat.msg.no_jei": "未检测到 JEI，无法查看物品配方。",
+  "itemchat.msg.unknown_item": "未知物品：%s",
+  "itemchat.msg.no_itemchat_item": "当前服务器没有安装 ItemChat，无法向其他玩家展示物品。",
+  "itemchat.msg.no_itemchat_quest": "当前服务器没有安装 ItemChat，无法向其他玩家展示任务。"
+}
